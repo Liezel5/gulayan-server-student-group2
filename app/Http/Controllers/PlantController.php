@@ -39,7 +39,23 @@ class PlantController extends Controller
    */
   public function update(Request $request, PlantModel $plantController)
   {
-    //TODO : implement update record functionality
+    $validated = $request->validate([
+      'name' => 'sometimes|string|max:255',
+      'variety' => 'sometimes|string|max:255',
+      'notes' => 'sometimes|string',
+      'date_planted' => 'sometimes|date',
+      'seedling_count' => 'sometimes|integer|min:0',
+      'batch_name' => 'sometimes|string|max:255',
+      'starting_fund' => 'sometimes|numeric|min:0',
+      'seedling_source' => 'sometimes|string|max:255',
+    ]);
+
+    $plantController->update($validated);
+
+    return response()->json([
+      'message' => 'Plant record updated successfully',
+      'data' => $plantController
+    ], 200);
   }
 
   /**
