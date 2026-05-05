@@ -78,32 +78,34 @@
     <script>
         let currentPage = 1;
         let perPage = 10;
-
-        const apiToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        let isLoading = false;
 
         async function fetchPlants(page = 1, itemsPerPage = 10) {
+            if (isLoading) return;
+            
+            isLoading = true;
+            const tableBody = document.getElementById('plants-table-body');
+            
             try {
-                const response = await axios.get('/api/plants', {
-                    params: {
-                        page: page,
-                        per_page: itemsPerPage
-                    }
-                });
-
-                if (response.data.success) {
-                    renderTable(response.data.data);
-                    updatePagination(response.data.pagination);
+                const response = await fetch(`/api/plants?page=${page}&per_page=${itemsPerPage}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const jsonData = await response.json();
+                
+                if (jsonData.success) {
+                    renderTable(jsonData.data);
+                    updatePagination(jsonData.pagination);
+                } else {
+                    showError('Failed to load plants data');
                 }
             } catch (error) {
                 console.error('Error fetching plants:', error);
-                const tbody = document.getElementById('plants-table-body');
-                tbody.innerHTML = `
-                    <tr class="border-t border-gray-200 dark:border-[#3E3E3A]">
-                        <td colspan="8" class="px-6 py-8 text-center text-red-600 dark:text-red-400">
-                            Error loading plants. Please try again.
-                        </td>
-                    </tr>
-                `;
+                showError(`Error loading plants: ${error.message}`);
+            } finally {
+                isLoading = false;
             }
         }
 
@@ -124,15 +126,37 @@
             tbody.innerHTML = plants.map(plant => `
                 <tr class="border-t border-gray-200 dark:border-[#3E3E3A] hover:bg-gray-50 dark:hover:bg-[#1D1D1D] transition-colors">
                     <td class="px-6 py-4">${plant.id}</td>
-                    <td class="px-6 py-4 font-medium">${plant.name || '-'}</td>
-                    <td class="px-6 py-4">${plant.variety || '-'}</td>
-                    <td class="px-6 py-4">${plant.batch_name || '-'}</td>
+                    <td class="px-6 py-4 font-medium">${escapeHtml(plant.name || '-')}</td>
+                    <td class="px-6 py-4">${escapeHtml(plant.variety || '-')}</td>
+                    <td class="px-6 py-4">${escapeHtml(plant.batch_name || '-')}</td>
                     <td class="px-6 py-4">${plant.date_planted ? new Date(plant.date_planted).toLocaleDateString() : '-'}</td>
                     <td class="px-6 py-4">${plant.seedling_count || '-'}</td>
                     <td class="px-6 py-4">${plant.starting_fund ? '$' + parseFloat(plant.starting_fund).toFixed(2) : '-'}</td>
-                    <td class="px-6 py-4 max-w-xs truncate" title="${plant.notes || ''}">${plant.notes || '-'}</td>
+                    <td class="px-6 py-4 max-w-xs truncate" title="${escapeHtml(plant.notes || '')}">${escapeHtml(plant.notes || '-')}</td>
                 </tr>
             `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showError(message) {
+            const tbody = document.getElementById('plants-table-body');
+            tbody.innerHTML = `
+                <tr class="border-t border-gray-200 dark:border-[#3E3E3A]">
+                    <td colspan="8" class="px-6 py-8">
+                        <div class="flex items-center justify-center bg-red-50 dark:bg-[#1D0002] rounded-md p-4 border border-red-200 dark:border-[#4B0600]">
+                            <svg class="w-5 h-5 text-red-600 dark:text-[#FF4433] mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="text-red-800 dark:text-[#FF4433]">${escapeHtml(message)}</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
         }
 
         function updatePagination(pagination) {
