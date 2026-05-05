@@ -10,12 +10,38 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json([
-            "file" => "index",
-            "class" => "User Controller"
-        ]);
+        try {
+            $perPage = $request->query('per_page', 15);
+            $perPage = min((int) $perPage, 100); // Limit max per_page to 100
+
+            $users = User::paginate($perPage);
+
+            return response()->json([
+                'message' => 'User records retrieved successfully',
+                'data' => $users->items(),
+                'pagination' => [
+                    'total' => $users->total(),
+                    'per_page' => $users->perPage(),
+                    'current_page' => $users->currentPage(),
+                    'last_page' => $users->lastPage(),
+                    'from' => $users->firstItem(),
+                    'to' => $users->lastItem(),
+                ],
+                'links' => [
+                    'first' => $users->url(1),
+                    'last' => $users->url($users->lastPage()),
+                    'prev' => $users->previousPageUrl(),
+                    'next' => $users->nextPageUrl(),
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to retrieve user records',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
